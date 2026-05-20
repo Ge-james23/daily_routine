@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的日常 (Momentum Style)</title>
+<link rel="apple-touch-icon" href="icon.png">
+<!-- 开启 iOS 的全屏 Web App 模式 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!-- 状态栏样式设置 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- 桌面显示的 App 名称 -->
+    <meta name="apple-mobile-web-app-title" content="Routine">
+    
+    <!-- 安卓全屏模式 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#10b981"> <!-- 顶栏颜色 (翡翠绿) -->
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 隐藏原生滚动条 */
+        ::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; background-color: #f8fafc; user-select: none; -webkit-tap-highlight-color: transparent;}
+        
+        /* 防闪烁机制，确保 Vue 初始化完成前不显示未经编译的乱码 */
+        [v-cloak] { display: none !important; }
+
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .scale-enter-active, .scale-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .scale-enter-from, .scale-leave-to { opacity: 0; transform: scale(0.9); }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+    <!-- 加入 v-cloak 指令 -->
+    <div id="app" v-cloak class="h-screen flex flex-col max-w-md mx-auto bg-[#f4f7f9] shadow-2xl relative overflow-hidden">
+        
+        <!-- 顶部 Header -->
+        <header class="pt-8 pb-2 px-6 z-10 flex justify-between items-end">
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{{ formattedDate }}</p>
+                <h1 class="text-3xl font-extrabold text-teal-900 tracking-tight">{{ headerTitle }}</h1>
+            </div>
+            <!-- 右侧占位 -->
+            <div class="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-sm" v-if="currentTab === 'today'">
+                <i class="fa-solid fa-user text-xs"></i>
+            </div>
+        </header>
+
+        <!-- 主体内容区 -->
+        <main class="flex-1 overflow-y-auto pb-24 px-5 pt-4 relative">
+            
+            <!-- ====== 今日 (Today) ====== -->
+            <div v-show="currentTab === 'today'" class="space-y-4">
+                
+                <!-- 环形进度看板 -->
+                <div class="bg-white rounded-3xl p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] flex items-center mb-6">
+                    <!-- SVG 环形进度条 -->
+                    <div class="relative w-20 h-20 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-full h-full transform -rotate-90 drop-shadow-sm">
+                            <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="6" fill="transparent" class="text-slate-100" />
+                            <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="6" fill="transparent" 
+                                    :stroke-dasharray="213.6" 
+                                    :stroke-dashoffset="213.6 - (todayProgress / 100) * 213.6" 
+                                    class="text-emerald-500 transition-all duration-1000 ease-out" 
+                                    stroke-linecap="round" />
+                        </svg>
+                        <div class="absolute flex flex-col items-center justify-center">
+                            <span class="text-lg font-bold text-teal-800">{{ todayProgress }}%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="ml-5">
+                        <h2 class="text-lg font-bold text-teal-900">{{ progressGreeting }}</h2>
+                        <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                            今日已完成 {{ todayCompletedCount }} 项。<br>
+                            <span class="text-emerald-600 font-medium" v-if="todayProgress < 100">目标5项，继续保持！</span>
+                            <span class="text-emerald-600 font-medium" v-else>目标达成，你太棒了！</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Routine 列表 -->
+                <div class="space-y-3">
+                    <div v-for="item in routines" :key="item.id" 
+                         @click="toggleRoutine(item.id)"
+                         class="bg-white rounded-2xl p-3.5 flex items-center shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] cursor-pointer active:scale-[0.98] transition-transform">
+                        
+                        <div class="w-11 h-11 rounded-full flex items-center justify-center mr-4 transition-colors"
+                             :class="isCompletedToday(item.id) ? 'bg-slate-50 text-slate-400' : 'bg-emerald-50 text-emerald-500'">
+                            <i class="fa-solid text-lg" :class="item.icon || 'fa-check'"></i>
+                        </div>
+                        
+                        <div class="flex-1 pr-4">
+                            <h3 class="text-base font-bold transition-colors" :class="isCompletedToday(item.id) ? 'text-slate-400' : 'text-slate-800'">{{ item.name }}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5 line-clamp-1" v-if="item.desc">{{ item.desc }}</p>
+                        </div>
+                        
+                        <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300"
+                             :class="isCompletedToday(item.id) ? 'bg-emerald-500 border-emerald-500 shadow-md shadow-emerald-200' : 'border-slate-300 bg-transparent'">
+                            <i class="fa-solid fa-check text-white text-[10px]" v-show="isCompletedToday(item.id)"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 统计 (Statistics) ====== -->
+            <div v-show="currentTab === 'stats'" class="space-y-4">
+                
+                <!-- 近期概览 -->
+                <div class="grid grid-cols-3 gap-3 mb-2">
+                    <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                        <h3 class="text-slate-400 text-[10px] font-bold mb-1">本周达标</h3>
+                        <p class="text-xl font-extrabold text-teal-900">{{ stats.week }}<span class="text-xs text-slate-400">%</span></p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                        <h3 class="text-slate-400 text-[10px] font-bold mb-1">本月达标</h3>
+                        <p class="text-xl font-extrabold text-teal-900">{{ stats.month }}<span class="text-xs text-slate-400">%</span></p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                        <h3 class="text-slate-400 text-[10px] font-bold mb-1">本年达标</h3>
+                        <p class="text-xl font-extrabold text-teal-900">{{ stats.year }}<span class="text-xs text-slate-400">%</span></p>
+                    </div>
+                </div>
+
+                <!-- 历史趋势切换卡 -->
+                <div class="flex bg-slate-200 rounded-xl p-1 shadow-inner">
+                    <button class="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                            :class="historyMode === 'week' ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500'"
+                            @click="historyMode = 'week'">按周回顾 (近5周)</button>
+                    <button class="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                            :class="historyMode === 'month' ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500'"
+                            @click="historyMode = 'month'">按月回顾 (近1年)</button>
+                </div>
+
+                <!-- 历史统计列表 -->
+                <div class="space-y-2.5 pb-6">
+                    <div v-for="stat in displayedHistoryStats" :key="stat.label" class="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-600 w-24">{{ stat.label }}</span>
+                        <!-- 水平进度条 -->
+                        <div class="flex-1 mx-3 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-500" 
+                                 :class="stat.percent >= 100 ? 'bg-emerald-400' : 'bg-teal-300'"
+                                 :style="{ width: stat.percent + '%' }"></div>
+                        </div>
+                        <span class="text-sm font-extrabold w-10 text-right" 
+                              :class="stat.percent >= 100 ? 'text-emerald-500' : 'text-teal-900'">{{ stat.percent }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 管理 (Manage) ====== -->
+            <div v-show="currentTab === 'manage'" class="space-y-3">
+                <div v-for="item in routines" :key="item.id" class="bg-white rounded-2xl p-4 shadow-sm flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mr-4">
+                        <i class="fa-solid" :class="item.icon || 'fa-check'"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-bold text-slate-800">{{ item.name }}</h3>
+                        <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">{{ item.desc || '暂无描述' }}</p>
+                    </div>
+                    <div class="flex gap-2 text-slate-400 ml-2">
+                        <button @click="openModal(item)" class="w-8 h-8 rounded-full hover:bg-slate-100 hover:text-emerald-500 transition-colors flex items-center justify-center"><i class="fa-solid fa-pen text-xs"></i></button>
+                        <button @click="deleteRoutine(item.id)" class="w-8 h-8 rounded-full hover:bg-slate-100 hover:text-red-500 transition-colors flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 全局悬浮添加按钮 (FAB) -->
+        <button v-show="currentTab === 'manage' || currentTab === 'today'" @click="openModal()" 
+                class="absolute bottom-24 right-6 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-300 flex items-center justify-center text-2xl hover:bg-emerald-600 active:scale-95 transition-all z-20">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+
+        <!-- 底部导航 (Tab) -->
+        <nav class="bg-white border-t border-slate-100 absolute bottom-0 w-full z-30 pb-safe">
+            <div class="flex justify-around items-center h-[72px] px-4">
+                <button @click="currentTab = 'today'" class="flex flex-col items-center justify-center w-20 h-12 rounded-2xl transition-all duration-300" 
+                        :class="currentTab === 'today' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'text-slate-400 hover:text-slate-600'">
+                    <i class="fa-solid fa-calendar-check text-lg mb-1"></i>
+                    <span class="text-[10px] font-bold">今日</span>
+                </button>
+                <button @click="currentTab = 'stats'" class="flex flex-col items-center justify-center w-20 h-12 rounded-2xl transition-all duration-300" 
+                        :class="currentTab === 'stats' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'text-slate-400 hover:text-slate-600'">
+                    <i class="fa-solid fa-chart-pie text-lg mb-1"></i>
+                    <span class="text-[10px] font-bold">统计</span>
+                </button>
+                <button @click="currentTab = 'manage'" class="flex flex-col items-center justify-center w-20 h-12 rounded-2xl transition-all duration-300" 
+                        :class="currentTab === 'manage' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'text-slate-400 hover:text-slate-600'">
+                    <i class="fa-solid fa-layer-group text-lg mb-1"></i>
+                    <span class="text-[10px] font-bold">管理</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- 管理表单弹窗 -->
+        <transition name="fade">
+            <div v-if="isModalOpen" class="fixed inset-0 bg-slate-900 bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-5">
+                <transition name="scale" appear>
+                    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+                        <h3 class="text-xl font-extrabold text-teal-900 mb-5">{{ editingItem.id ? '编辑' : '新增' }} Routine</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">名称</label>
+                                <input v-model.trim="editingItem.name" type="text" placeholder="例如：跑步" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:bg-white transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">描述 (选填)</label>
+                                <textarea v-model.trim="editingItem.desc" rows="2" placeholder="具体描述..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:bg-white transition resize-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-2 uppercase">选择图标</label>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <div v-for="icon in iconOptions" :key="icon" 
+                                         @click="editingItem.icon = icon"
+                                         class="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all"
+                                         :class="editingItem.icon === icon ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'">
+                                        <i class="fa-solid" :class="icon"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-8">
+                            <button @click="closeModal" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3 font-bold active:bg-slate-200 transition">取消</button>
+                            <button @click="saveRoutine" class="flex-1 bg-emerald-500 text-white rounded-xl py-3 font-bold active:bg-emerald-600 shadow-md shadow-emerald-200 transition">保存</button>
+                        </div>
+                    </div>
+                </transition>
+            </div>
+        </transition>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, watch, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                // 默认数据
+                const defaultRoutines = [
+                    { id: '1', name: '游泳', desc: 'Morning Session', icon: 'fa-person-swimming' },
+                    { id: '2', name: '健身', desc: 'Strength Training', icon: 'fa-dumbbell' },
+                    { id: '3', name: '其它运动', desc: 'Casual Activity', icon: 'fa-futbol' },
+                    { id: '4', name: '冥想', desc: '10 Minutes', icon: 'fa-spa' },
+                    { id: '5', name: '握力器', desc: '3 Sets of 15', icon: 'fa-hand-back-fist' },
+                    { id: '6', name: '深蹲', desc: '50 Reps', icon: 'fa-person-arrow-down-to-line' },
+                    { id: '7', name: '看纸质书', desc: '20 Pages', icon: 'fa-book-open' },
+                    { id: '8', name: '看AI新闻', desc: 'Daily Digest', icon: 'fa-newspaper' },
+                    { id: '9', name: '用AI工具', desc: 'Productivity Flow', icon: 'fa-robot' }
+                ];
+
+                // 供用户选择的图标库
+                const iconOptions = [
+                    'fa-person-running', 'fa-bicycle', 'fa-book', 'fa-laptop', 'fa-spa', 
+                    'fa-yin-yang', 'fa-om', 'fa-music', 'fa-pen', 'fa-heart'
+                ];
+
+                const currentTab = ref('today');
+                const historyMode = ref('week'); // 'week' or 'month'
+                const routines = ref([]);
+                const history = ref({}); 
+                
+                const isModalOpen = ref(false);
+                const editingItem = ref({ id: null, name: '', desc: '', icon: 'fa-spa' });
+
+                // 日期工具
+                const getTodayStr = () => {
+                    const d = new Date();
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                };
+                const todayStr = getTodayStr();
+
+                const formattedDate = computed(() => {
+                    const options = { weekday: 'long', month: 'short', day: 'numeric' };
+                    return new Intl.DateTimeFormat('en-US', options).format(new Date());
+                });
+
+                // 初始化加载数据
+                onMounted(() => {
+                    try {
+                        const savedRoutines = localStorage.getItem('momentumRoutines');
+                        routines.value = savedRoutines ? JSON.parse(savedRoutines) : [...defaultRoutines];
+                    } catch (e) {
+                        routines.value = [...defaultRoutines];
+                    }
+
+                    try {
+                        const savedHistory = localStorage.getItem('momentumHistory');
+                        history.value = savedHistory ? JSON.parse(savedHistory) : {};
+                    } catch (e) {
+                        history.value = {};
+                    }
+                    
+                    if (!history.value[todayStr]) {
+                        history.value[todayStr] = [];
+                    }
+                });
+
+                watch(routines, (newVal) => localStorage.setItem('momentumRoutines', JSON.stringify(newVal)), { deep: true });
+                watch(history, (newVal) => localStorage.setItem('momentumHistory', JSON.stringify(newVal)), { deep: true });
+
+                const headerTitle = computed(() => {
+                    if (currentTab.value === 'today') return 'Today';
+                    if (currentTab.value === 'stats') return 'Statistics';
+                    return 'Manage';
+                });
+
+                const todayCompletedCount = computed(() => (history.value[todayStr] || []).length);
+
+                const todayProgress = computed(() => {
+                    const count = todayCompletedCount.value;
+                    const progress = Math.floor((count / 5) * 100);
+                    return progress > 100 ? 100 : progress; 
+                });
+
+                const progressGreeting = computed(() => {
+                    if (todayProgress.value === 0) return "Let's Go!";
+                    if (todayProgress.value < 50) return "Good Start!";
+                    if (todayProgress.value < 100) return "Doing Great!";
+                    return "Perfect Day!";
+                });
+
+                // -------- 核心统计逻辑 --------
+                const getDailyProgress = (dateStr) => {
+                    const completed = history.value[dateStr] || [];
+                    let progress = (completed.length / 5) * 100;
+                    return progress > 100 ? 100 : progress;
+                };
+
+                const formatDateStr = (d) => {
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                };
+
+                // 获取过去 5 周（本周 + 前四周）的数据
+                const weekStats = computed(() => {
+                    const result = [];
+                    const now = new Date();
+                    const currentDay = now.getDay() === 0 ? 7 : now.getDay();
+                    const startOfCurrentWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - currentDay + 1);
+
+                    // 循环次数从 52 改为 5
+                    for (let i = 0; i < 5; i++) {
+                        let weekStart = new Date(startOfCurrentWeek.getFullYear(), startOfCurrentWeek.getMonth(), startOfCurrentWeek.getDate() - i * 7);
+                        let daysToCalculate = i === 0 ? currentDay : 7; // 本周只算到今天
+                        let totalProgress = 0;
+
+                        for (let day = 0; day < daysToCalculate; day++) {
+                            let dateStr = formatDateStr(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + day));
+                            totalProgress += getDailyProgress(dateStr);
+                        }
+                        
+                        let avg = daysToCalculate === 0 ? 0 : Math.round(totalProgress / daysToCalculate);
+                        let weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+                        
+                        let label = `${weekStart.getMonth() + 1}.${weekStart.getDate()}-${weekEnd.getMonth() + 1}.${weekEnd.getDate()}`;
+                        if (i === 0) label = '本周';
+                        else if (i === 1) label = '上周';
+
+                        result.push({ label, percent: avg });
+                    }
+                    return result;
+                });
+
+                // 获取过去 12 个月（1年）的数据
+                const monthStats = computed(() => {
+                    const result = [];
+                    const now = new Date();
+                    for (let i = 0; i < 12; i++) {
+                        let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                        let year = d.getFullYear();
+                        let month = d.getMonth(); 
+                        
+                        let daysInMonth = new Date(year, month + 1, 0).getDate();
+                        let daysToCalculate = i === 0 ? now.getDate() : daysInMonth; // 本月只算到今天
+                        let totalProgress = 0;
+
+                        for (let day = 1; day <= daysToCalculate; day++) {
+                            let dateStr = formatDateStr(new Date(year, month, day));
+                            totalProgress += getDailyProgress(dateStr);
+                        }
+                        
+                        let avg = daysToCalculate === 0 ? 0 : Math.round(totalProgress / daysToCalculate);
+                        result.push({ label: `${year}年${month + 1}月`, percent: avg });
+                    }
+                    return result;
+                });
+
+                // 历史回顾展示的数据源
+                const displayedHistoryStats = computed(() => {
+                    return historyMode.value === 'week' ? weekStats.value : monthStats.value;
+                });
+
+                // 近期概览统计
+                const stats = computed(() => {
+                    const d = new Date();
+                    const startOfYear = new Date(d.getFullYear(), 0, 1);
+                    const dayOfYear = Math.floor((d - startOfYear) / (24 * 60 * 60 * 1000)) + 1;
+                    
+                    let yearTotal = 0;
+                    for (let i = 0; i < dayOfYear; i++) {
+                        let dateStr = formatDateStr(new Date(d.getFullYear(), 0, i + 1));
+                        yearTotal += getDailyProgress(dateStr);
+                    }
+
+                    return {
+                        week: weekStats.value[0]?.percent || 0,
+                        month: monthStats.value[0]?.percent || 0,
+                        year: Math.round(yearTotal / dayOfYear) || 0
+                    };
+                });
+
+                // -------- 交互方法 --------
+                const isCompletedToday = (id) => history.value[todayStr] && history.value[todayStr].includes(id);
+
+                const toggleRoutine = (id) => {
+                    if (!history.value[todayStr]) history.value[todayStr] = [];
+                    const index = history.value[todayStr].indexOf(id);
+                    if (index === -1) history.value[todayStr].push(id);
+                    else history.value[todayStr].splice(index, 1);
+                };
+
+                const openModal = (item = null) => {
+                    if (item) {
+                        editingItem.value = { ...item };
+                    } else {
+                        editingItem.value = { id: null, name: '', desc: '', icon: 'fa-spa' };
+                    }
+                    isModalOpen.value = true;
+                };
+
+                const closeModal = () => {
+                    isModalOpen.value = false;
+                };
+
+                const saveRoutine = () => {
+                    if (!editingItem.value.name.trim()) {
+                        alert('名称不能为空');
+                        return;
+                    }
+                    if (editingItem.value.id) {
+                        const index = routines.value.findIndex(r => r.id === editingItem.value.id);
+                        if (index !== -1) routines.value[index] = { ...editingItem.value };
+                    } else {
+                        routines.value.push({
+                            id: Date.now().toString(),
+                            name: editingItem.value.name,
+                            desc: editingItem.value.desc,
+                            icon: editingItem.value.icon
+                        });
+                    }
+                    closeModal();
+                };
+
+                const deleteRoutine = (id) => {
+                    if (confirm('确定要删除这个日常习惯吗？历史统计数据仍会保留。')) {
+                        routines.value = routines.value.filter(r => r.id !== id);
+                    }
+                };
+
+                return {
+                    currentTab, historyMode, routines, headerTitle, formattedDate,
+                    todayCompletedCount, todayProgress, progressGreeting, stats,
+                    displayedHistoryStats, isModalOpen, editingItem, iconOptions,
+                    isCompletedToday, toggleRoutine, 
+                    openModal, closeModal, saveRoutine, deleteRoutine
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
