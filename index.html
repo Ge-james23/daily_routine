@@ -3,31 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的日常 (Momentum Style)</title>
- <!-- 苹果 iOS 专用图标 -->
-    <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
-    <!-- 安卓 Chrome 桌面图标 -->
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="./icon.png">
-    <!-- 基础网页图标防错 -->
-    <link rel="shortcut icon" href="./icon.png" type="image/x-icon">
+    <title>我的日常</title>
+    
+    <!-- ====== 桌面图标与 PWA 核心配置 ====== -->
+    <!-- 直接嵌入 manifest 配置，强制浏览器将其识别为 App -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Routine","short_name":"Routine","display":"standalone","start_url":".","icons":[{"src":"icon.png","sizes":"192x192","type":"image/png"},{"src":"icon.png","sizes":"512x512","type":"image/png"}],"theme_color":"#10b981","background_color":"#f8fafc"}'>
+    
+    <!-- 苹果 iOS 专用图标 -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <!-- 安卓 Chrome 及通用图标 -->
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="shortcut icon" href="icon.png" type="image/x-icon">
 
     <!-- 开启 iOS 的全屏 Web App 模式 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- 状态栏样式设置 -->
+    <!-- 状态栏样式设置 (black-translucent 可以让网页延伸到刘海屏顶部) -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- 桌面显示的 App 名称 -->
     <meta name="apple-mobile-web-app-title" content="Routine">
     
     <!-- 安卓全屏模式 -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#10b981"> <!-- 顶栏颜色 (翡翠绿) -->
+    <meta name="theme-color" content="#10b981">
+
+    <!-- ====== 外部资源引入 ====== -->
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 FontAwesome 图标库 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         /* 隐藏原生滚动条 */
         ::-webkit-scrollbar { display: none; }
@@ -161,7 +167,13 @@
             </div>
 
             <!-- ====== 管理 (Manage) ====== -->
-            <div v-show="currentTab === 'manage'" class="space-y-3">
+            <div v-show="currentTab === 'manage'" class="space-y-3 pb-4">
+                
+                <!-- 新增 Routine 按钮 (代替原来的全局悬浮按钮) -->
+                <button @click="openModal()" class="w-full bg-emerald-500 text-white rounded-2xl py-3.5 font-bold shadow-md shadow-emerald-200 active:bg-emerald-600 transition flex justify-center items-center gap-2 mb-5">
+                    <i class="fa-solid fa-plus text-lg"></i> 新增 Routine
+                </button>
+
                 <div v-for="item in routines" :key="item.id" class="bg-white rounded-2xl p-4 shadow-sm flex items-center">
                     <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mr-4">
                         <i class="fa-solid" :class="item.icon || 'fa-check'"></i>
@@ -177,12 +189,6 @@
                 </div>
             </div>
         </main>
-
-        <!-- 全局悬浮添加按钮 (FAB) -->
-        <button v-show="currentTab === 'manage' || currentTab === 'today'" @click="openModal()" 
-                class="absolute bottom-24 right-6 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-300 flex items-center justify-center text-2xl hover:bg-emerald-600 active:scale-95 transition-all z-20">
-            <i class="fa-solid fa-plus"></i>
-        </button>
 
         <!-- 底部导航 (Tab) -->
         <nav class="bg-white border-t border-slate-100 absolute bottom-0 w-full z-30 pb-safe">
@@ -343,17 +349,16 @@
                     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 };
 
-                // 获取过去 5 周（本周 + 前四周）的数据
+                // 获取过去 5 周的数据
                 const weekStats = computed(() => {
                     const result = [];
                     const now = new Date();
                     const currentDay = now.getDay() === 0 ? 7 : now.getDay();
                     const startOfCurrentWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - currentDay + 1);
 
-                    // 循环次数从 52 改为 5
                     for (let i = 0; i < 5; i++) {
                         let weekStart = new Date(startOfCurrentWeek.getFullYear(), startOfCurrentWeek.getMonth(), startOfCurrentWeek.getDate() - i * 7);
-                        let daysToCalculate = i === 0 ? currentDay : 7; // 本周只算到今天
+                        let daysToCalculate = i === 0 ? currentDay : 7;
                         let totalProgress = 0;
 
                         for (let day = 0; day < daysToCalculate; day++) {
@@ -373,7 +378,7 @@
                     return result;
                 });
 
-                // 获取过去 12 个月（1年）的数据
+                // 获取过去 12 个月的数据
                 const monthStats = computed(() => {
                     const result = [];
                     const now = new Date();
@@ -383,7 +388,7 @@
                         let month = d.getMonth(); 
                         
                         let daysInMonth = new Date(year, month + 1, 0).getDate();
-                        let daysToCalculate = i === 0 ? now.getDate() : daysInMonth; // 本月只算到今天
+                        let daysToCalculate = i === 0 ? now.getDate() : daysInMonth;
                         let totalProgress = 0;
 
                         for (let day = 1; day <= daysToCalculate; day++) {
@@ -397,12 +402,10 @@
                     return result;
                 });
 
-                // 历史回顾展示的数据源
                 const displayedHistoryStats = computed(() => {
                     return historyMode.value === 'week' ? weekStats.value : monthStats.value;
                 });
 
-                // 近期概览统计
                 const stats = computed(() => {
                     const d = new Date();
                     const startOfYear = new Date(d.getFullYear(), 0, 1);
