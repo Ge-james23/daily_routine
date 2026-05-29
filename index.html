@@ -6,40 +6,27 @@
     <title>我的日常</title>
     
     <!-- ====== 桌面图标与 PWA 核心配置 ====== -->
-    <!-- 直接嵌入 manifest 配置，强制浏览器将其识别为 App -->
     <link rel="manifest" href='data:application/manifest+json,{"name":"Routine","short_name":"Routine","display":"standalone","start_url":".","icons":[{"src":"icon.png","sizes":"192x192","type":"image/png"},{"src":"icon.png","sizes":"512x512","type":"image/png"}],"theme_color":"#10b981","background_color":"#f8fafc"}'>
     
-    <!-- 苹果 iOS 专用图标 -->
     <link rel="apple-touch-icon" href="icon.png">
-    <!-- 安卓 Chrome 及通用图标 -->
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="shortcut icon" href="icon.png" type="image/x-icon">
 
-    <!-- 开启 iOS 的全屏 Web App 模式 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- 状态栏样式设置 (black-translucent 可以让网页延伸到刘海屏顶部) -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <!-- 桌面显示的 App 名称 -->
     <meta name="apple-mobile-web-app-title" content="Routine">
     
-    <!-- 安卓全屏模式 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#10b981">
 
     <!-- ====== 外部资源引入 ====== -->
-    <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 FontAwesome 图标库 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* 隐藏原生滚动条 */
         ::-webkit-scrollbar { display: none; }
         body { -ms-overflow-style: none; scrollbar-width: none; background-color: #f8fafc; user-select: none; -webkit-tap-highlight-color: transparent;}
-        
-        /* 防闪烁机制，确保 Vue 初始化完成前不显示未经编译的乱码 */
         [v-cloak] { display: none !important; }
 
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
@@ -49,7 +36,6 @@
     </style>
 </head>
 <body class="text-slate-800 antialiased">
-    <!-- 加入 v-cloak 指令 -->
     <div id="app" v-cloak class="h-screen flex flex-col max-w-md mx-auto bg-[#f4f7f9] shadow-2xl relative overflow-hidden">
         
         <!-- 顶部 Header -->
@@ -58,7 +44,6 @@
                 <p class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{{ formattedDate }}</p>
                 <h1 class="text-3xl font-extrabold text-teal-900 tracking-tight">{{ headerTitle }}</h1>
             </div>
-            <!-- 右侧占位 -->
             <div class="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-sm" v-if="currentTab === 'today'">
                 <i class="fa-solid fa-user text-xs"></i>
             </div>
@@ -70,9 +55,28 @@
             <!-- ====== 今日 (Today) ====== -->
             <div v-show="currentTab === 'today'" class="space-y-4">
                 
+                <!-- 身份宣言 (Identity Declaration) -->
+                <div class="flex items-center justify-center mb-1">
+                    <!-- 展示状态 -->
+                    <div v-if="!isEditingDeclaration" @click="startEditDeclaration" 
+                         class="text-sm font-bold text-teal-700 bg-teal-100/60 px-5 py-2 rounded-full cursor-pointer hover:bg-teal-100 transition shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] max-w-full flex items-center gap-2">
+                        <i class="fa-solid fa-quote-left text-[10px] text-teal-400"></i>
+                        <span class="truncate whitespace-nowrap">{{ identityDeclaration || '点击设置你的身份宣言...' }}</span>
+                        <i class="fa-solid fa-pen text-[10px] text-teal-400 ml-1"></i>
+                    </div>
+                    <!-- 编辑状态 -->
+                    <input v-else
+                           v-model="identityDeclaration"
+                           @blur="saveDeclaration"
+                           @keyup.enter="saveDeclaration"
+                           ref="declarationInput"
+                           maxlength="16"
+                           placeholder="例如：我是一个自律的人"
+                           class="text-md font-bold text-teal-800 bg-white border-2 border-teal-400 px-5 py-1.5 rounded-full outline-none shadow-sm w-[85%] text-center transition-all">
+                </div>
+                
                 <!-- 环形进度看板 -->
                 <div class="bg-white rounded-3xl p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] flex items-center mb-6">
-                    <!-- SVG 环形进度条 -->
                     <div class="relative w-20 h-20 flex items-center justify-center flex-shrink-0">
                         <svg class="w-full h-full transform -rotate-90 drop-shadow-sm">
                             <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="6" fill="transparent" class="text-slate-100" />
@@ -124,7 +128,6 @@
             <!-- ====== 统计 (Statistics) ====== -->
             <div v-show="currentTab === 'stats'" class="space-y-4">
                 
-                <!-- 近期概览 -->
                 <div class="grid grid-cols-3 gap-3 mb-2">
                     <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
                         <h3 class="text-slate-400 text-[10px] font-bold mb-1">本周达标</h3>
@@ -140,7 +143,6 @@
                     </div>
                 </div>
 
-                <!-- 历史趋势切换卡 -->
                 <div class="flex bg-slate-200 rounded-xl p-1 shadow-inner">
                     <button class="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
                             :class="historyMode === 'week' ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500'"
@@ -150,11 +152,9 @@
                             @click="historyMode = 'month'">按月回顾 (近1年)</button>
                 </div>
 
-                <!-- 历史统计列表 -->
                 <div class="space-y-2.5 pb-6">
                     <div v-for="stat in displayedHistoryStats" :key="stat.label" class="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
                         <span class="text-xs font-bold text-slate-600 w-24">{{ stat.label }}</span>
-                        <!-- 水平进度条 -->
                         <div class="flex-1 mx-3 h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div class="h-full rounded-full transition-all duration-500" 
                                  :class="stat.percent >= 100 ? 'bg-emerald-400' : 'bg-teal-300'"
@@ -169,7 +169,6 @@
             <!-- ====== 管理 (Manage) ====== -->
             <div v-show="currentTab === 'manage'" class="space-y-3 pb-4">
                 
-                <!-- 新增 Routine 按钮 (代替原来的全局悬浮按钮) -->
                 <button @click="openModal()" class="w-full bg-emerald-500 text-white rounded-2xl py-3.5 font-bold shadow-md shadow-emerald-200 active:bg-emerald-600 transition flex justify-center items-center gap-2 mb-5">
                     <i class="fa-solid fa-plus text-lg"></i> 新增 Routine
                 </button>
@@ -250,7 +249,7 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, watch, onMounted } = Vue;
+        const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
 
         createApp({
             setup() {
@@ -267,19 +266,23 @@
                     { id: '9', name: '用AI工具', desc: 'Productivity Flow', icon: 'fa-robot' }
                 ];
 
-                // 供用户选择的图标库
                 const iconOptions = [
                     'fa-person-running', 'fa-bicycle', 'fa-book', 'fa-laptop', 'fa-spa', 
                     'fa-yin-yang', 'fa-om', 'fa-music', 'fa-pen', 'fa-heart'
                 ];
 
                 const currentTab = ref('today');
-                const historyMode = ref('week'); // 'week' or 'month'
+                const historyMode = ref('week'); 
                 const routines = ref([]);
                 const history = ref({}); 
                 
                 const isModalOpen = ref(false);
                 const editingItem = ref({ id: null, name: '', desc: '', icon: 'fa-spa' });
+
+                // 身份宣言数据
+                const identityDeclaration = ref('我是一个高度自律的人');
+                const isEditingDeclaration = ref(false);
+                const declarationInput = ref(null);
 
                 // 日期工具
                 const getTodayStr = () => {
@@ -293,8 +296,9 @@
                     return new Intl.DateTimeFormat('en-US', options).format(new Date());
                 });
 
-                // 初始化加载数据
+                // 初始化
                 onMounted(() => {
+                    // 读取 Routine 列表
                     try {
                         const savedRoutines = localStorage.getItem('momentumRoutines');
                         routines.value = savedRoutines ? JSON.parse(savedRoutines) : [...defaultRoutines];
@@ -302,6 +306,7 @@
                         routines.value = [...defaultRoutines];
                     }
 
+                    // 读取打卡历史
                     try {
                         const savedHistory = localStorage.getItem('momentumHistory');
                         history.value = savedHistory ? JSON.parse(savedHistory) : {};
@@ -312,10 +317,17 @@
                     if (!history.value[todayStr]) {
                         history.value[todayStr] = [];
                     }
+
+                    // 读取身份宣言
+                    const savedDeclaration = localStorage.getItem('momentumDeclaration');
+                    if (savedDeclaration !== null) {
+                        identityDeclaration.value = savedDeclaration;
+                    }
                 });
 
                 watch(routines, (newVal) => localStorage.setItem('momentumRoutines', JSON.stringify(newVal)), { deep: true });
                 watch(history, (newVal) => localStorage.setItem('momentumHistory', JSON.stringify(newVal)), { deep: true });
+                watch(identityDeclaration, (newVal) => localStorage.setItem('momentumDeclaration', newVal));
 
                 const headerTitle = computed(() => {
                     if (currentTab.value === 'today') return 'Today';
@@ -338,7 +350,23 @@
                     return "Perfect Day!";
                 });
 
-                // -------- 核心统计逻辑 --------
+                // 身份宣言方法
+                const startEditDeclaration = async () => {
+                    isEditingDeclaration.value = true;
+                    await nextTick();
+                    if (declarationInput.value) {
+                        declarationInput.value.focus();
+                    }
+                };
+
+                const saveDeclaration = () => {
+                    if (!identityDeclaration.value.trim()) {
+                        identityDeclaration.value = '我是一个高度自律的人';
+                    }
+                    isEditingDeclaration.value = false;
+                };
+
+                // 统计逻辑
                 const getDailyProgress = (dateStr) => {
                     const completed = history.value[dateStr] || [];
                     let progress = (completed.length / 5) * 100;
@@ -349,7 +377,6 @@
                     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 };
 
-                // 获取过去 5 周的数据
                 const weekStats = computed(() => {
                     const result = [];
                     const now = new Date();
@@ -378,7 +405,6 @@
                     return result;
                 });
 
-                // 获取过去 12 个月的数据
                 const monthStats = computed(() => {
                     const result = [];
                     const now = new Date();
@@ -424,7 +450,7 @@
                     };
                 });
 
-                // -------- 交互方法 --------
+                // 交互方法
                 const isCompletedToday = (id) => history.value[todayStr] && history.value[todayStr].includes(id);
 
                 const toggleRoutine = (id) => {
@@ -476,6 +502,8 @@
                     currentTab, historyMode, routines, headerTitle, formattedDate,
                     todayCompletedCount, todayProgress, progressGreeting, stats,
                     displayedHistoryStats, isModalOpen, editingItem, iconOptions,
+                    identityDeclaration, isEditingDeclaration, declarationInput,
+                    startEditDeclaration, saveDeclaration,
                     isCompletedToday, toggleRoutine, 
                     openModal, closeModal, saveRoutine, deleteRoutine
                 };
